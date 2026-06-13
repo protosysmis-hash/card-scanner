@@ -17,7 +17,8 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(finalApiKey);
     
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    // --- Yahan model ka naam update kiya gaya hai ---
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Extract contact info from this card. Return ONLY valid JSON format. No markdown, no prefixes, no explanations. 
     Format: {"name": "", "jobTitle": "", "company": "", "email": "", "phone": "", "address": ""}`;
@@ -35,7 +36,6 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
-    // --- Yahan maine cleaning logic ko aur strong kar diya hai ---
     // 1. Markdown tags hataye
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
