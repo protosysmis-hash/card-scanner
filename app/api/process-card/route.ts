@@ -27,8 +27,7 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
-    // BUILD FIX: Yahan regex ke badle split/join use kiya hai, 
-    // taaki compiler ko koi confusion na ho.
+    // BUILD FIX: Split/Join ka use kiya hai jo error nahi dega
     let cleanText = text.split("```json").join("");
     cleanText = cleanText.split("```").join("");
     cleanText = cleanText.trim();
