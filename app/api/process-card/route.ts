@@ -5,10 +5,7 @@ export async function POST(req: Request) {
   try {
     const { image, apiKey } = await req.json();
     
-    // Yahan humne check logic update kar diya hai:
-    // 1. Agar user ne UI mein key dali hai, wo use hogi.
-    // 2. Agar nahi, toh Vercel Environment Variables se bina prefix wali key uthayega.
-    // 3. Agar wo bhi nahi, toh last mein NEXT_PUBLIC_ wali check karega.
+    // API Key fail-safe logic
     const finalApiKey = apiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!image || !finalApiKey) {
@@ -20,6 +17,7 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(finalApiKey);
     
+    // Stable model use kiya hai
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Extract contact info from this card. Return ONLY valid JSON format. No markdown, no prefixes, no explanations. 
@@ -38,8 +36,13 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
+    // Markdown tags aur extra characters hatane ka logic
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
+    // Invisible characters clean karna
+    text = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+
+    // JSON extract karna
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
