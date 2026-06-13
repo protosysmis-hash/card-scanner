@@ -5,7 +5,8 @@ export async function POST(req: Request) {
   try {
     const { image, apiKey } = await req.json();
     
-    const finalApiKey = apiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    // Priority: User input > Environment Variable
+    const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
 
     if (!image || !finalApiKey) {
       return NextResponse.json({ error: 'API key ya image missing hai' }, { status: 400 });
@@ -16,12 +17,10 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(finalApiKey);
     
-    // Yahan hum model name ko ek variable mein le rahe hain
-    // Aur hum 'gemini-1.5-flash' hi use kar rahe hain
-    const modelName = 'gemini-1.5-flash';
-    const model = genAI.getGenerativeModel({ model: modelName });
+    // Model select kiya
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `Extract contact info from this card. Return ONLY valid JSON format. No markdown, no prefixes, no explanations. 
+    const prompt = `Extract contact info from this card. Return ONLY valid JSON format. 
     Format: {"name": "", "jobTitle": "", "company": "", "email": "", "phone": "", "address": ""}`;
 
     const result = await model.generateContent([
@@ -37,20 +36,19 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
+    // JSON clean-up
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    text = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-
+    
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
     if (jsonStart !== -1 && jsonEnd !== -1) {
-      text = text.substring(jsonStart, jsonEnd + 1);
+      const jsonStr = text.substring(jsonStart, jsonEnd + 1);
+      const data = JSON.parse(jsonStr);
+      return NextResponse.json({ result: data });
     } else {
-        throw new Error("Invalid response format from AI");
+      throw new Error("AI ne valid JSON return nahi kiya");
     }
-
-    const data = JSON.parse(text);
-    return NextResponse.json({ result: data });
 
   } catch (error: any) {
     console.error('API Error Details:', error);
