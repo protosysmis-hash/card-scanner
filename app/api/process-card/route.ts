@@ -6,7 +6,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { image, apiKey } = body;
     
-    // Priority: Environment Variable (Server Side) > User Input (Client Side)
     const finalApiKey = process.env.GEMINI_API_KEY || apiKey;
 
     if (!image) {
@@ -20,7 +19,6 @@ export async function POST(req: Request) {
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
     const mimeType = image.includes(';') ? image.split(';')[0].split(':')[1] : 'image/jpeg';
 
-    // Free Tier ke liye setup
     const genAI = new GoogleGenerativeAI(finalApiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
@@ -29,19 +27,23 @@ export async function POST(req: Request) {
 
     const result = await model.generateContent([
       prompt,
-      {
-        inlineData: { data: base64Data, mimeType: mimeType }
-      }
+      { inlineData: { data: base64Data, mimeType: mimeType } }
     ]);
 
     const response = await result.response;
-    let text = response.text().replace(/```json|
-```/g, '').trim();
+    let text = response.text().trim();
+    
+    // BUILD FIX: Yahan backticks ka use nahi kiya hai, strings use ki hain
+    text = text.split("```json").join("");
+    text = text.split("```").join("");
+    text = text.trim();
     
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
-    if (jsonStart === -1) throw new Error("AI ne valid JSON return nahi kiya");
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error("AI ne valid JSON return nahi kiya");
+    }
     
     const data = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
     return NextResponse.json({ result: data });
