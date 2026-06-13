@@ -6,10 +6,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { image, apiKey } = body;
     
+    // API Key priority: process.env -> frontend request
     const finalApiKey = process.env.GEMINI_API_KEY || apiKey;
-    if (!finalApiKey) throw new Error("API Key missing hai");
-    if (!image) throw new Error("Image missing hai");
+    
+    if (!finalApiKey) throw new Error("API Key missing hai. Please set GEMINI_API_KEY in Vercel.");
+    if (!image) throw new Error("Image data missing hai.");
 
+    // Image processing
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
     const mimeType = image.includes(';') ? image.split(';')[0].split(':')[1] : 'image/jpeg';
 
@@ -27,24 +30,21 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
-    // BUILD FIX: Split/Join ka use kiya hai jo error nahi dega
-    let cleanText = text.split("```json").join("");
-    cleanText = cleanText.split("```").join("");
-    cleanText = cleanText.trim();
+    // JSON cleaning
+    let cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
     
     const jsonStart = cleanText.indexOf('{');
     const jsonEnd = cleanText.lastIndexOf('}');
     
     if (jsonStart === -1 || jsonEnd === -1) {
-        console.error("AI Response:", text);
-        throw new Error("AI ne valid JSON return nahi kiya");
+        throw new Error("AI ne valid JSON return nahi kiya: " + text);
     }
     
     const data = JSON.parse(cleanText.substring(jsonStart, jsonEnd + 1));
     return NextResponse.json({ result: data });
 
   } catch (error: any) {
-    console.error('SERVER SIDE ERROR:', error.message);
+    console.error('SERVER SIDE ERROR:', error);
     return NextResponse.json({ 
       error: "Scanner error", 
       details: error.message 
