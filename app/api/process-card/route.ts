@@ -5,7 +5,6 @@ export async function POST(req: Request) {
   try {
     const { image, apiKey } = await req.json();
     
-    // API Key fail-safe logic
     const finalApiKey = apiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!image || !finalApiKey) {
@@ -17,8 +16,10 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(finalApiKey);
     
-    // Stable model use kiya hai
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Yahan hum model name ko ek variable mein le rahe hain
+    // Aur hum 'gemini-1.5-flash' hi use kar rahe hain
+    const modelName = 'gemini-1.5-flash';
+    const model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = `Extract contact info from this card. Return ONLY valid JSON format. No markdown, no prefixes, no explanations. 
     Format: {"name": "", "jobTitle": "", "company": "", "email": "", "phone": "", "address": ""}`;
@@ -36,13 +37,9 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
-    // Markdown tags aur extra characters hatane ka logic
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    // Invisible characters clean karna
     text = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
 
-    // JSON extract karna
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
@@ -56,7 +53,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ result: data });
 
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('API Error Details:', error);
     return NextResponse.json({ 
       error: "Scanner error", 
       details: error.message 
