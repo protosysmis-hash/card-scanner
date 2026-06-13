@@ -5,8 +5,11 @@ export async function POST(req: Request) {
   try {
     const { image, apiKey } = await req.json();
     
-    // Vercel ya local env se key
-    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    // Yahan humne check logic update kar diya hai:
+    // 1. Agar user ne UI mein key dali hai, wo use hogi.
+    // 2. Agar nahi, toh Vercel Environment Variables se bina prefix wali key uthayega.
+    // 3. Agar wo bhi nahi, toh last mein NEXT_PUBLIC_ wali check karega.
+    const finalApiKey = apiKey || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!image || !finalApiKey) {
       return NextResponse.json({ error: 'API key ya image missing hai' }, { status: 400 });
@@ -17,7 +20,6 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(finalApiKey);
     
-    // --- Yahan model ka naam update kiya gaya hai ---
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Extract contact info from this card. Return ONLY valid JSON format. No markdown, no prefixes, no explanations. 
@@ -36,10 +38,8 @@ export async function POST(req: Request) {
     const response = await result.response;
     let text = response.text().trim();
     
-    // 1. Markdown tags hataye
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    // 2. JSON ka pehla aur aakhri curly brace dhund kar baki text hata diya
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
@@ -49,7 +49,6 @@ export async function POST(req: Request) {
         throw new Error("Invalid response format from AI");
     }
 
-    // 3. JSON parse kiya
     const data = JSON.parse(text);
     return NextResponse.json({ result: data });
 
