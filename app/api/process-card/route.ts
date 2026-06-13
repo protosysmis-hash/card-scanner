@@ -3,22 +3,26 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
-    const { image, apiKey } = await req.json();
+    const body = await req.json();
+    const { image, apiKey } = body;
     
-    // Priority: User input > Environment Variable
-    const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
+    // Priority: Environment Variable (Server Side) > User Input (Client Side)
+    const finalApiKey = process.env.GEMINI_API_KEY || apiKey;
 
-    if (!image || !finalApiKey) {
-      return NextResponse.json({ error: 'API key ya image missing hai' }, { status: 400 });
+    if (!image) {
+      return NextResponse.json({ error: 'Image missing hai' }, { status: 400 });
+    }
+    
+    if (!finalApiKey) {
+      return NextResponse.json({ error: 'API Key setup nahi hai' }, { status: 400 });
     }
 
     const base64Data = image.includes(',') ? image.split(',')[1] : image;
     const mimeType = image.includes(';') ? image.split(';')[0].split(':')[1] : 'image/jpeg';
 
+    // Free Tier ke liye setup
     const genAI = new GoogleGenerativeAI(finalApiKey);
-    
-    // Model select kiya
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `Extract contact info from this card. Return ONLY valid JSON format. 
     Format: {"name": "", "jobTitle": "", "company": "", "email": "", "phone": "", "address": ""}`;
@@ -26,32 +30,24 @@ export async function POST(req: Request) {
     const result = await model.generateContent([
       prompt,
       {
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType
-        }
+        inlineData: { data: base64Data, mimeType: mimeType }
       }
     ]);
 
     const response = await result.response;
-    let text = response.text().trim();
-    
-    // JSON clean-up
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    let text = response.text().replace(/```json|
+```/g, '').trim();
     
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      const jsonStr = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonStr);
-      return NextResponse.json({ result: data });
-    } else {
-      throw new Error("AI ne valid JSON return nahi kiya");
-    }
+    if (jsonStart === -1) throw new Error("AI ne valid JSON return nahi kiya");
+    
+    const data = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+    return NextResponse.json({ result: data });
 
   } catch (error: any) {
-    console.error('API Error Details:', error);
+    console.error('SERVER SIDE ERROR:', error.message);
     return NextResponse.json({ 
       error: "Scanner error", 
       details: error.message 
