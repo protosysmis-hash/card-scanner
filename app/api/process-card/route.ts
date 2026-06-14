@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     // kabhi kabhi 'gemini-1.5-flash-latest' ya specific version chahiye hota hai.
     // Lekin 'gemini-1.5-flash' standard hai. 
     // Chalo ise try karte hain:
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const base64Data = image.split(',')[1] || image;
 
