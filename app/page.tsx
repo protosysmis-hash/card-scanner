@@ -59,7 +59,7 @@ export default function Home() {
 
   const processCard = async () => {
     if (!image || !apiKey) {
-      alert("Please upload an image and enter your Free Gemini API Key!");
+      alert("Please upload an image and enter your Gemini API Key!");
       return;
     }
     setLoading(true);
@@ -68,23 +68,25 @@ export default function Home() {
       const res = await fetch('/api/process-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Sirf ye part change hai: hum 'image' aur 'apiKey' dono bhej rahe hain
         body: JSON.stringify({ image, apiKey }),
       });
       
       const data = await res.json();
-      if (data.error) {
-        alert("Error: " + data.error);
-      } else {
-        setCardData(data.result);
+      
+      // Error handling ko aur precise banaya hai
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process card");
       }
-    } catch (error) {
+      
+      setCardData(data.result);
+    } catch (error: any) {
       console.error("Error processing card:", error);
-      alert("Something went wrong! Server content format error.");
+      alert("Error: " + error.message);
     } finally {
       setLoading(false);
     }
   };
-
   // --- UPDATED WHATSAPP LOGIC ---
   const sendWhatsApp = () => {
     if (!cardData?.phone) {
